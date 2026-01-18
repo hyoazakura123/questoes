@@ -10,19 +10,13 @@ use Illuminate\Support\Facades\DB;
 
 class QuestaoController extends Controller
 {
-    /**
-     * Exibe o formulário de criação da questão
-     */
-    public function index()
+    public function create()
     {
         $topicos = Topico::orderBy('nome')->get();
 
         return view('questoes.create', compact('topicos'));
     }
 
-    /**
-     * Persiste a questão e suas alternativas
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -35,7 +29,6 @@ class QuestaoController extends Controller
         ]);
 
         DB::transaction(function () use ($request) {
-
             $questao = Questao::create([
                 'enunciado' => $request->enunciado,
                 'topico_id' => $request->topico_id,
@@ -52,7 +45,32 @@ class QuestaoController extends Controller
             }
         });
 
-        return redirect('/')
-            ->with('success', 'Questão cadastrada com sucesso.');
+        return redirect()->route('questoes.create')
+            ->with('success', 'Questão cadastrada com sucesso!');
+    }
+
+    public function porTopico(Topico $topico)
+    {
+        $questoes = $topico->questoes()->with('alternativas')->get();
+
+        return view('questoes.quiz', compact('topico', 'questoes'));
+    }
+
+    public function responder(Request $request, Questao $questao)
+    {
+        $request->validate([
+            'alternativa_id' => 'required|exists:alternativas,id',
+        ]);
+
+        $alternativaSelecionada = Alternativa::find($request->alternativa_id);
+        $alternativaCorreta = $questao->alternativaCorreta;
+
+        $acertou = $alternativaSelecionada->correta;
+
+        return response()->json([
+            'acertou' => $acertou,
+            'alternativa_correta_id' => $alternativaCorreta->id,
+            'comentario' => $questao->comentario,
+        ]);
     }
 }
